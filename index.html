@@ -1,0 +1,96 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>古诗词储备量量化测试</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- 首页 -->
+    <div id="home-page" class="page active">
+        <div class="container">
+            <div class="home-content">
+                <div class="logo-section">
+                    <div class="poetry-icon">诗</div>
+                    <h1 class="site-title">古诗词储备量量化测试</h1>
+                    <p class="site-subtitle">自适应难度测试，精准量化你的诗词储备数量</p>
+                </div>
+                <button id="start-btn" class="primary-btn">开始测试</button>
+                <div class="feature-hints">
+                    <div class="hint-item">
+                        <span class="hint-dot"></span>
+                        <span>30道精选题目</span>
+                    </div>
+                    <div class="hint-item">
+                        <span class="hint-dot"></span>
+                        <span>自适应难度调整</span>
+                    </div>
+                    <div class="hint-item">
+                        <span class="hint-dot"></span>
+                        <span>整百区间精准量化</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 答题测试页 -->
+    <div id="test-page" class="page">
+        <div class="container">
+            <div class="test-header">
+                <div class="progress-info">
+                    <span id="current-question">1</span> / <span id="total-questions">30</span>
+                </div>
+                <div class="difficulty-badge" id="difficulty-badge">入门</div>
+            </div>
+            <div class="question-card">
+                <div class="question-text" id="question-text"></div>
+                <div class="options-list" id="options-list"></div>
+            </div>
+            <div class="feedback-area" id="feedback-area">
+                <div class="feedback-content">
+                    <div class="feedback-result" id="feedback-result"></div>
+                    <div class="feedback-parse" id="feedback-parse"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 结果页 -->
+    <div id="result-page" class="page">
+        <div class="container">
+            <div class="result-content">
+                <div class="result-header">
+                    <div class="result-icon">测</div>
+                    <h2 class="result-title">测试完成</h2>
+                </div>
+                <div class="result-main">
+                    <div class="result-label">你的古诗词储备量为</div>
+                    <div class="result-range" id="result-range"></div>
+                    <div class="result-level" id="result-level"></div>
+                </div>
+                <div class="result-stats">
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-total">30</div>
+                        <div class="stat-label">总题数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-correct">0</div>
+                        <div class="stat-label">答对题数</div>
+                    </div>
+                    <div class="stat-item">
+                        <div class="stat-value" id="stat-rate">0%</div>
+                        <div class="stat-label">正确率</div>
+                    </div>
+                </div>
+                <div class="result-summary" id="result-summary"></div>
+                <button id="restart-btn" class="primary-btn">重新测试</button>
+            </div>
+        </div>
+    </div>
+
+    <script src="questions.js?v=2"></script>
+    <script src="app.js?v=2"></script>
+</body>
+</html>
