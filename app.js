@@ -1,5 +1,5 @@
-// ===== 古诗词储备量测试 - 核心逻辑 V4 =====
-// V4改进：11级难度体系 + 动态选项生成 + 全局选项去重
+// ===== 古诗词储备量测试 - 核心逻辑 V5 =====
+// V5改进：6级难度体系 + 稳定掌握储备量算法 + 难度降级机制
 
 // 测试状态管理
 const testState = {
@@ -7,14 +7,15 @@ const testState = {
     totalQuestions: 30,
     currentDifficulty: 1,
     consecutiveCorrect: 0,
+    consecutiveWrong: 0,       // 新增：连续答错计数
     correctCount: 0,
     usedQuestionIds: [],
     maxReachedDifficulty: 1,
     answers: [],
     isWaiting: false,
-    usedOptionsTexts: new Set(),  // 全局已用选项文本追踪
-    currentOptions: [],          // 当前题目的选项列表
-    currentAnswerIndex: 0        // 当前题目正确答案在选项中的位置
+    usedOptionsTexts: new Set(),
+    currentOptions: [],
+    currentAnswerIndex: 0
 };
 
 // DOM 元素
@@ -59,12 +60,13 @@ function startTest() {
     testState.currentQuestion = 0;
     testState.currentDifficulty = 1;
     testState.consecutiveCorrect = 0;
+    testState.consecutiveWrong = 0;
     testState.correctCount = 0;
     testState.usedQuestionIds = [];
     testState.maxReachedDifficulty = 1;
     testState.answers = [];
     testState.isWaiting = false;
-    testState.usedOptionsTexts = new Set();  // 清空已用选项追踪
+    testState.usedOptionsTexts = new Set();
     testState.currentOptions = [];
     testState.currentAnswerIndex = 0;
     
@@ -139,7 +141,7 @@ function loadQuestion() {
     
     if (!question) {
         // 当前难度无题，尝试下一难度
-        if (testState.currentDifficulty < 11) {
+        if (testState.currentDifficulty < 6) {
             testState.currentDifficulty++;
             loadQuestion();
             return;
@@ -236,19 +238,26 @@ function handleAnswer(selectedIndex) {
     }, 1500);
 }
 
-// ===== 自适应难度调整 =====
+// ===== 自适应难度调整（V5：增加降级机制） =====
 function adjustDifficulty(isCorrect) {
     if (isCorrect) {
+        testState.consecutiveCorrect++;
+        testState.consecutiveWrong = 0;
         // 连续答对3道，升级难度
         if (testState.consecutiveCorrect >= 3) {
-            if (testState.currentDifficulty < 11) {
+            if (testState.currentDifficulty < 6) {
                 testState.currentDifficulty++;
                 testState.consecutiveCorrect = 0;
             }
         }
     } else {
-        // 答错，重置连续正确计数，维持当前难度
+        testState.consecutiveWrong++;
         testState.consecutiveCorrect = 0;
+        // 连续答错2道且当前难度>1，降级
+        if (testState.consecutiveWrong >= 2 && testState.currentDifficulty > 1) {
+            testState.currentDifficulty--;
+            testState.consecutiveWrong = 0;
+        }
     }
 }
 
@@ -268,36 +277,82 @@ function endTest() {
     switchPage('result');
 }
 
-// ===== 计算测试结果 =====
+// ===== 计算测试结果（V5：稳定掌握机制） =====
 function calculateResult() {
-    const correctRate = testState.correctCount / testState.totalQuestions;
-    const maxDiff = testState.maxReachedDifficulty;
+    const answers = testState.answers;
+    const totalQuestions = testState.totalQuestions;
     
-    // 基于最高难度和正确率计算储备量
-    let level, range, summary;
-    
-    // 11级难度配置
-    const config = DIFFICULTY_CONFIG[maxDiff];
-    level = config.name;
-    
-    // 根据正确率在级别区间内细分
-    const interval = config.max - config.min;
-    if (correctRate >= 0.8) {
-        // 高正确率：取区间上段
-        const upper = config.max;
-        const lower = config.min + Math.round(interval * 0.6);
-        range = `${lower}-${upper}首`;
-    } else if (correctRate >= 0.5) {
-        // 中等正确率：取区间中段
-        const upper = config.min + Math.round(interval * 0.7);
-        const lower = config.min + Math.round(interval * 0.3);
-        range = `${lower}-${upper}首`;
-    } else {
-        // 低正确率：取区间下段
-        const upper = config.min + Math.round(interval * 0.4);
-        const lower = config.min;
-        range = `${lower}-${upper}首`;
+    // 计算每个难度的正确数和总数
+    const statsByDiff = {};
+    for (let d = 1; d <= 6; d++) {
+        const atLevel = answers.filter(a => a.difficulty === d);
+        statsByDiff[d] = {
+            total: atLevel.length,
+            correct: atLevel.filter(a => a.correct).length
+        };
     }
+    
+    // 计算"稳定掌握"的难度级别
+    // 定义：某难度答对率>=60%且至少答对2题，视为"稳定掌握该级别"
+    let masteredLevel = 0;
+    for (let d = 1; d <= 6; d++) {
+        const stat = statsByDiff[d];
+        if (stat.total >= 2 && stat.correct / stat.total >= 0.6) {
+            masteredLevel = d;
+        } else {
+            break; // 一旦某级别未稳定掌握，停止
+        }
+    }
+    
+    // 如果用户没有稳定掌握任何级别，看最高答对的一道题
+    if (masteredLevel === 0) {
+        const correctAnswers = answers.filter(a => a.correct);
+        if (correctAnswers.length > 0) {
+            const maxCorrectDiff = Math.max(...correctAnswers.map(a => a.difficulty));
+            masteredLevel = Math.max(1, maxCorrectDiff - 1); // 降一级作为保守估计
+        } else {
+            masteredLevel = 1;
+        }
+    }
+    
+    // 基础储备量 = 稳定掌握级别的下限
+    const baseConfig = DIFFICULTY_CONFIG[masteredLevel];
+    const baseReserve = baseConfig.min;
+    
+    // 额外储备量 = 在更高级别中答对的题目 × 每题价值
+    // 更高级别的零散答对，每题只贡献少量储备量
+    let bonusReserve = 0;
+    for (let d = masteredLevel + 1; d <= 6; d++) {
+        const correctAtLevel = statsByDiff[d].correct;
+        const valuePerQuestion = 30; // 零散答对每题约30首的价值
+        bonusReserve += correctAtLevel * valuePerQuestion;
+    }
+    
+    // 当前级别内的表现微调
+    const currentLevelStat = statsByDiff[masteredLevel];
+    const currentLevelRate = currentLevelStat.total > 0 
+        ? currentLevelStat.correct / currentLevelStat.total 
+        : 0;
+    
+    // 在当前级别内，根据正确率微调（±区间宽度的80%）
+    const levelInterval = baseConfig.max - baseConfig.min;
+    const fineTune = Math.round(currentLevelRate * levelInterval * 0.8);
+    
+    // 总储备量
+    let totalReserve = baseReserve + fineTune + bonusReserve;
+    
+    // 封顶
+    const maxPossible = DIFFICULTY_CONFIG[6].max;
+    totalReserve = Math.min(totalReserve, maxPossible);
+    
+    // 生成区间显示（50首为一个区间）
+    const rangeSize = 50;
+    const rangeStart = Math.floor(totalReserve / rangeSize) * rangeSize;
+    const rangeEnd = rangeStart + rangeSize;
+    const range = `${rangeStart}-${rangeEnd}首`;
+    
+    // 等级名称
+    const level = baseConfig.name;
     
     // 生成评价语
     const summaries = {
@@ -327,46 +382,23 @@ function calculateResult() {
             "你已掌握高中拓展诗词，理解能力较强。"
         ],
         6: [
-            "你的诗词储备达到提高水平，对较难诗词有一定掌握。",
-            "你掌握了大量提高级诗词，文学素养较高。",
-            "你已掌握较难经典名篇，诗词储备非常丰富。"
-        ],
-        7: [
-            "你的诗词储备达到熟练水平，对各类诗词都有较好掌握。",
-            "你掌握了大量熟练级诗词，堪称诗词达人。",
-            "你已掌握高难度诗词，储备量令人敬佩。"
-        ],
-        8: [
             "你的诗词储备达到精通水平，对冷门名篇也有涉猎。",
-            "你掌握了大量精通级诗词，诗词储备非常深厚。",
-            "你已掌握高难度经典名篇，堪称诗词专家。"
-        ],
-        9: [
-            "你的诗词储备达到专家水平，对各类诗词都有深入研究。",
-            "你掌握了大量专家级诗词，令人敬佩。",
-            "你已掌握冷门名篇，诗词储备极为丰富。"
-        ],
-        10: [
-            "你的诗词储备达到大师水平，对冷门名篇有深入研究。",
-            "你掌握了大量大师级诗词，堪称诗词大师。",
-            "你已掌握极高难度诗词，储备量非常深厚。"
-        ],
-        11: [
-            "你的诗词储备达到大神级别，对冷门名篇也有涉猎。",
-            "你掌握了大量冷门名篇，诗词储备非常深厚。",
-            "你已掌握冷门名篇及高难度诗词，诗词储备深厚，堪称诗词大神！"
+            "你掌握了大量精通级诗词，堪称诗词达人。",
+            "你已掌握高难度诗词及冷门名篇，诗词储备深厚，堪称诗词大神！"
         ]
     };
     
-    if (correctRate >= 0.8) {
-        summary = summaries[maxDiff][2];
-    } else if (correctRate >= 0.5) {
-        summary = summaries[maxDiff][1];
+    const overallCorrectRate = testState.correctCount / totalQuestions;
+    let summary;
+    if (overallCorrectRate >= 0.8) {
+        summary = summaries[masteredLevel][2];
+    } else if (overallCorrectRate >= 0.5) {
+        summary = summaries[masteredLevel][1];
     } else {
-        summary = summaries[maxDiff][0];
+        summary = summaries[masteredLevel][0];
     }
     
-    return { level, range, summary };
+    return { level, range, summary, totalReserve };
 }
 
 // ===== 重新开始 =====
