@@ -196,9 +196,6 @@ function handleAnswer(selectedIndex) {
     // 更新统计
     if (isCorrect) {
         testState.correctCount++;
-        testState.consecutiveCorrect++;
-    } else {
-        testState.consecutiveCorrect = 0;
     }
     
     // 更新最高难度记录
