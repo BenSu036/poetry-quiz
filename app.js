@@ -217,9 +217,9 @@ function handleAnswer(selectedIndex) {
     // 显示反馈
     elements.feedbackResult.textContent = isCorrect ? '回答正确！' : '回答错误';
     elements.feedbackResult.className = 'feedback-result ' + (isCorrect ? 'correct' : 'wrong');
-    // 显示全文+答案解析
-    const fullContent = question.fullContent || question.parse;
-    elements.feedbackParse.innerHTML = `<strong>全文：</strong>${fullContent}<br><strong>答案：</strong>${question.parse}`;
+    // 显示全诗+出处
+    const fullContent = question.fullContent || question.answer;
+    elements.feedbackParse.innerHTML = `<div class="feedback-poem">${fullContent}</div><div class="feedback-source">${question.parse}</div>`;
     elements.feedbackArea.classList.add('show');
     
     // 自适应难度调整
@@ -232,7 +232,7 @@ function handleAnswer(selectedIndex) {
         } else {
             loadQuestion();
         }
-    }, 1500);
+    }, 2500);
 }
 
 // ===== 自适应难度调整（V5：增加降级机制） =====
